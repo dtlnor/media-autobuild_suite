@@ -1870,6 +1870,8 @@ if [[ $bits = 64bit && $vvenc = y ]] &&
     do_uninstall include/vvenc lib/cmake/vvenc "${_check[@]}"
     do_cmakeinstall video -DVVENC_ENABLE_LINK_TIME_OPT=OFF
     do_checkIfExist
+else
+    pc_exists libvvenc || do_removeOption "--enable-libvvenc"
 fi
 
 _check=(bin-video/vvdecapp.exe
@@ -1881,6 +1883,8 @@ if [[ $bits = 64bit && $vvdec = y ]] &&
     do_uninstall include/vvdec lib/cmake/vvdec "${_check[@]}"
     do_cmakeinstall video -DVVDEC_ENABLE_LINK_TIME_OPT=OFF
     do_checkIfExist
+else
+    pc_exists libvvdec || do_removeOption "--enable-libvvdec"
 fi
 
 _check=(avisynth/avisynth{,_c}.h
@@ -2082,6 +2086,10 @@ if [[ $ffmpeg != no ]]; then
         _deps=(lib{aom,tesseract,vmaf,x265,vpx}.a)
     if do_vcs "$ffmpegPath"; then
         do_changeFFmpegConfig "$license"
+		if [[ $bits = 64bit ]] && enabled_any libvvdec libvvenc; then
+			do_patch "https://patchwork.ffmpeg.org/series/8138/mbox/" am  ||
+			do_removeOptions "--enable-libvvdec --enable-libvvenc"
+		fi
         [[ -f ffmpeg_extra.sh ]] && source ffmpeg_extra.sh
         if enabled libsvthevc; then
             do_patch "https://raw.githubusercontent.com/OpenVisualCloud/SVT-HEVC/master/ffmpeg_plugin/master-0001-lavc-svt_hevc-add-libsvt-hevc-encoder-wrapper.patch" am ||
