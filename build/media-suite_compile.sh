@@ -2117,8 +2117,26 @@ if [[ $ffmpeg != no ]]; then
     if do_vcs "$ffmpegPath"; then
         do_changeFFmpegConfig "$license"
 		if [[ $bits = 64bit ]] && enabled_any libvvdec libvvenc; then
-			do_patch "https://patchwork.ffmpeg.org/series/8138/mbox/" am  ||
-			do_removeOptions "--enable-libvvdec --enable-libvvenc"
+			  do_patch "https://patchwork.ffmpeg.org/project/ffmpeg/patch/20230321150124.21999-2-thomas.ff@spin-digital.com/mbox/" am  ||
+				  do_removeOptions "--enable-libvvdec --enable-libvvenc"
+			  do_patch "https://patchwork.ffmpeg.org/project/ffmpeg/patch/20230321150124.21999-3-thomas.ff@spin-digital.com/mbox/" am  ||
+				  do_removeOptions "--enable-libvvdec --enable-libvvenc"
+			  do_patch "https://patchwork.ffmpeg.org/project/ffmpeg/patch/20230321150124.21999-4-thomas.ff@spin-digital.com/mbox/" am  ||
+				  do_removeOptions "--enable-libvvdec --enable-libvvenc"
+			  do_patch "https://patchwork.ffmpeg.org/project/ffmpeg/patch/20230321150124.21999-5-thomas.ff@spin-digital.com/mbox/" am  ||
+				  do_removeOptions "--enable-libvvdec --enable-libvvenc"
+			  do_patch "https://patchwork.ffmpeg.org/project/ffmpeg/patch/20230321150124.21999-6-thomas.ff@spin-digital.com/mbox/" am  ||
+				  do_removeOptions "--enable-libvvdec --enable-libvvenc"
+			  do_patch "https://patchwork.ffmpeg.org/project/ffmpeg/patch/20230321150124.21999-7-thomas.ff@spin-digital.com/mbox/" am  ||
+				  do_removeOptions "--enable-libvvdec --enable-libvvenc"
+			  do_patch "https://patchwork.ffmpeg.org/project/ffmpeg/patch/20230321150124.21999-8-thomas.ff@spin-digital.com/mbox/" am  ||
+				  do_removeOptions "--enable-libvvdec --enable-libvvenc"
+			  do_patch "https://patchwork.ffmpeg.org/project/ffmpeg/patch/20230321150124.21999-9-thomas.ff@spin-digital.com/mbox/" am  ||
+				  do_removeOptions "--enable-libvvdec --enable-libvvenc"
+			  do_patch "https://patchwork.ffmpeg.org/project/ffmpeg/patch/20230321150124.21999-10-thomas.ff@spin-digital.com/mbox/" am  ||
+				  do_removeOptions "--enable-libvvdec --enable-libvvenc"
+			  do_patch "https://patchwork.ffmpeg.org/project/ffmpeg/patch/20230321150124.21999-11-thomas.ff@spin-digital.com/mbox/" am  ||
+				  do_removeOptions "--enable-libvvdec --enable-libvvenc"
 		fi
         [[ -f ffmpeg_extra.sh ]] && source ffmpeg_extra.sh
         if enabled libsvthevc; then
