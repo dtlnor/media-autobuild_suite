@@ -214,7 +214,7 @@ fi
 _deps=("$MINGW_PREFIX"/lib/pkgconfig/oniguruma.pc)
 _check=(bin-global/jq.exe)
 if [[ $jq = y ]] &&
-    do_vcs "https://github.com/stedolan/jq.git"; then
+    do_vcs "https://github.com/jqlang/jq.git"; then
     do_patch "https://raw.githubusercontent.com/m-ab-s/mabs-patches/master/jq/0001-jv_thread-try-using-HAVE_PTHREAD_KEY_CREATE-instead.patch" am
     do_pacman_install oniguruma
     do_uninstall "${_check[@]}"
@@ -238,11 +238,9 @@ _check=(libxml2.a libxml2/libxml/xmlIO.h libxml-2.0.pc)
 if { enabled_any libxml2 libbluray || [[ $cyanrip = y ]] || ! mpv_disabled libbluray; } &&
     do_vcs "$SOURCE_REPO_LIBXML2"; then
     do_uninstall include/libxml2/libxml "${_check[@]}"
-    NOCONFIGURE=true do_autogen
-    [[ -f config.mak ]] && log "distclean" make distclean
-    sed -ri 's|(bin_PROGRAMS = ).*|\1|g' Makefile.am
-    CFLAGS+=" -DLIBXML_STATIC_FOR_DLL -DNOLIBTOOL" \
-        do_separate_confmakeinstall --without-python
+    extracommands=("-DLIBXML2_WITH_PYTHON=OFF" "-DLIBXML2_WITH_TESTS=OFF")
+    [[ $standalone = y ]] || extracommands+=("-DLIBXML2_WITH_PROGRAMS=OFF")
+    do_cmakeinstall "${extracommands[@]}"
     do_checkIfExist
 fi
 
@@ -545,7 +543,7 @@ if [[ $jpegxl = y ]] || { [[ $ffmpeg != no ]] && enabled libjxl; }; then
     _check=(libhwy{,_{contrib,test}}.a libhwy{,-{contrib,test}}.pc hwy/highway.h)
     if do_vcs "$SOURCE_REPO_LIBHWY"; then
         do_uninstall "${_check[@]}" include/hwy
-        CXXFLAGS+=" -DHWY_COMPILE_ALL_ATTAINABLE" do_cmakeinstall
+        CXXFLAGS+=" -DHWY_COMPILE_ALL_ATTAINABLE" do_cmakeinstall -DHWY_ENABLE_TESTS=OFF
         do_checkIfExist
     fi
 
@@ -1778,9 +1776,10 @@ fi
 _check=(librist.{a,pc} librist/librist.h)
 [[ $standalone = y ]] && _check+=(bin-global/rist{sender,receiver,2rist,srppasswd}.exe)
 if enabled librist && do_vcs "$SOURCE_REPO_LIBRIST"; then
-    do_patch "https://raw.githubusercontent.com/m-ab-s/mabs-patches/master/librist/0001-Workaround-fixes-for-cJSON-symbol-collision.patch" am
+    do_pacman_install cjson
+    do_patch "https://code.videolan.org/1480c1/librist/-/commit/0dc32581ceb0af14b71d4f548eacdd51b775c0ad.patch" am
     do_uninstall include/librist "${_check[@]}"
-    extracommands=("-Ddisable_json=true")
+    extracommands=("-Dbuiltin_cjson=false")
     [[ $standalone = y ]] || extracommands+=("-Dbuilt_tools=false")
     do_mesoninstall global -Dhave_mingw_pthreads=true -Dtest=false "${extracommands[@]}"
     do_checkIfExist
@@ -1936,9 +1935,11 @@ if { { [[ $ffmpeg != no ]] && enabled_any vulkan libplacebo; } ||
     _DeadSix27=https://raw.githubusercontent.com/DeadSix27/python_cross_compile_script/master
     _mabs=https://raw.githubusercontent.com/m-ab-s/mabs-patches/master
     _shinchiro=https://raw.githubusercontent.com/shinchiro/mpv-winbuild-cmake/master
+    do_pacman_install uasm
     do_uninstall "${_check[@]}"
     do_patch "$_mabs/vulkan-loader/0001-loader-cross-compile-static-linking-hacks.patch" am
     do_patch "$_mabs/vulkan-loader/0002-pc-remove-CMAKE_CXX_IMPLICIT_LINK_LIBRARIES.patch" am
+    do_patch "$_mabs/vulkan-loader/0003-loader-prefix-cjson-symbols-and-mark-most-as-static.patch" am
     grep_and_sed VULKAN_LIB_SUFFIX loader/vulkan.pc.in \
             's/@VULKAN_LIB_SUFFIX@//'
     create_build_dir
@@ -1952,8 +1953,10 @@ if { { [[ $ffmpeg != no ]] && enabled_any vulkan libplacebo; } ||
         do_install d3d{kmthk,ukmdt}.h include/
     cd_safe "$(get_first_subdir -f)"
     do_print_progress "Building Vulkan-Loader"
-    CFLAGS+=" -DSTRSAFE_NO_DEPRECATE" do_cmakeinstall -DBUILD_TESTS=OFF -DUSE_CCACHE=OFF \
-    -DUSE_UNSAFE_C_GEN=ON -DVULKAN_HEADERS_INSTALL_DIR="$LOCALDESTDIR" \
+    CC="${CC##ccache }" CXX="${CXX##ccache }" \
+        CFLAGS+=" -DSTRSAFE_NO_DEPRECATE" \
+        do_cmakeinstall -DBUILD_TESTS=OFF \
+    -DVULKAN_HEADERS_INSTALL_DIR="$LOCALDESTDIR" \
     -DBUILD_STATIC_LOADER=ON -DUNIX=OFF -DENABLE_WERROR=OFF
     do_checkIfExist
     unset _DeadSix27 _mabs _shinchiro
@@ -1981,9 +1984,12 @@ _check=(lib{glslang,OSDependent,HLSL,OGLCompiler,SPVRemapper}.a
 if { { [[ $mpv != n ]]  && ! mpv_disabled libplacebo; } ||
      { [[ $ffmpeg != no ]] && enabled_any libplacebo libglslang; } } &&
     do_vcs "$SOURCE_REPO_GLSLANG"; then
+    do_pacman_install python
     do_uninstall "${_check[@]}"
     log dependencies /usr/bin/python ./update_glslang_sources.py
-    do_cmakeinstall -DUNIX=OFF
+    # Python3_EXECUTABLE set to prevent CMake from finding the newer (but specific to the msys subsystem) python 3.11
+    # (current mingw-w64 versions are 3.10)
+    do_cmakeinstall -DUNIX=OFF -DPython3_EXECUTABLE="${MINGW_PREFIX}/bin/python.exe"
     do_checkIfExist
 fi
 
@@ -2148,6 +2154,8 @@ if [[ $ffmpeg != no ]]; then
             do_patch "https://raw.githubusercontent.com/OpenVisualCloud/SVT-VP9/master/ffmpeg_plugin/master-0001-Add-ability-for-ffmpeg-to-run-svt-vp9.patch" am ||
                 do_removeOption --enable-libsvtvp9
         fi
+
+        enabled libjxl && do_patch "https://raw.githubusercontent.com/m-ab-s/mabs-patches/master/ffmpeg/0001-libjxldec-remove-deprecated-fields.patch" am
 
         enabled libsvthevc || do_removeOption FFMPEG_OPTS_SHARED "--enable-libsvthevc"
         enabled libsvtav1 || do_removeOption FFMPEG_OPTS_SHARED "--enable-libsvtav1"
@@ -2442,16 +2450,6 @@ if [[ $mpv != n ]] && pc_exists libavcodec libavformat libswscale libavfilter; t
         do_checkIfExist
     fi
 
-    _check=(mruby.h libmruby{,_core}.a)
-    if mpv_enabled mruby && do_vcs "$SOURCE_REPO_MRUBY"; then
-        do_uninstall "${_check[@]}" include/mruby mrbconf.h
-        log clean make clean
-        log make ./minirake "$(pwd)/build/host/lib/libmruby.a"
-        do_install build/host/lib/*.a lib/
-        cmake -E copy_directory include "$LOCALDESTDIR/include"
-        do_checkIfExist
-    fi
-
     _check=()
     ! mpv_disabled cplayer && _check+=(bin-video/mpv.{exe,com})
     mpv_enabled libmpv-shared && _check+=(bin-video/mpv-2.dll)
@@ -2492,9 +2490,13 @@ if [[ $mpv != n ]] && pc_exists libavcodec libavformat libswscale libavfilter; t
 
         [[ -f mpv_extra.sh ]] && source mpv_extra.sh
 
-        mpv_enabled mruby &&
-            { git merge --no-edit --no-gpg-sign origin/mruby ||
-              git merge --abort && do_removeOption MPV_OPTS "--enable-mruby"; }
+        # The mruby branch cannot (currently) be built with Meson, and hasn't seen
+        # any activity in over 5 years; for now it's statically disabled.
+        # https://github.com/mpv-player/mpv/issues/11078
+        if mpv_enabled mruby; then
+            do_removeOption MPV_OPTS "--enable-mruby";
+            do_simple_print "${orange}mruby in mpv is no longer supported!${reset}"
+        fi
 
         if files_exist libavutil.a; then
             MPV_OPTS+=(--enable-static-build)
