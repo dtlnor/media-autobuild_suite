@@ -1242,7 +1242,7 @@ do_patch() {
     [[ $2 == am ]] && am=true
 
     # hack for URLs without filename
-    patchName=${patchName:-"$(/usr/bin/curl -sI "$patch" | grep -Eo 'filename=.*$' | sed 's/filename=//')"}
+    patchName=${patchName:-"$(/usr/bin/curl -LsI "$patch" | grep -Eo 'filename=.*$' | sed 's/filename=//')"}
     [[ -z $patchName ]] &&
         printf '%b\n' "${red}Failed to apply patch '$patch'" \
             "Patch without filename, ignoring. Specify an explicit filename.${reset}" &&
@@ -1426,6 +1426,23 @@ do_rustinstall() {
         log "rust.install" "$RUSTUP_HOME/bin/cargo.exe" install \
         --target="$CARCH"-pc-windows-gnu \
         --jobs="$cpuCount" "${@:---path=.}" "${rust_extras[@]}"
+    extra_script post rust
+    unset rust_extras
+}
+
+do_rustcinstall() {
+    log "rust.update" "$RUSTUP_HOME/bin/cargo.exe" update
+    # use this array to pass additional parameters to cargo
+    local rust_extras=()
+    extra_script pre rust
+    [[ -f "$(get_first_subdir -f)/do_not_reconfigure" ]] &&
+        return
+    PKG_CONFIG_ALL_STATIC=true \
+        CC="ccache clang" \
+        PKG_CONFIG="$LOCALDESTDIR/bin/ab-pkg-config" \
+        log "rust.cinstall" "$RUSTUP_HOME/bin/cargo.exe" cinstall \
+        --target="$CARCH"-pc-windows-gnu \
+        --jobs="$cpuCount" --prefix="$LOCALDESTDIR" "$@" "${rust_extras[@]}"
     extra_script post rust
     unset rust_extras
 }
@@ -2151,15 +2168,12 @@ create_cmake_toolchain() {
     local toolchain_file=(
         "SET(CMAKE_RC_COMPILER_INIT windres)"
         ""
-        "LIST(APPEND CMAKE_PROGRAM_PATH $(cygpath -m "$LOCALDESTDIR/bin"))"
-        "SET(CMAKE_FIND_ROOT_PATH $_win_paths)"
-        "SET(CMAKE_PREFIX_PATH $_win_paths)"
+        "LIST(APPEND CMAKE_PROGRAM_PATH \"$(cygpath -m "$LOCALDESTDIR/bin")\")"
+        "SET(CMAKE_PREFIX_PATH \"$_win_paths\")"
+        "SET(CMAKE_FIND_ROOT_PATH \"$_win_paths\")"
         "SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)"
         "SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)"
         "SET(CMAKE_BUILD_TYPE Release)"
-        "LIST(APPEND CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES $mingw_path)"
-        "LIST(APPEND CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES $mingw_path)"
-        "SET(CMAKE_NO_SYSTEM_FROM_IMPORTED ON)"
     )
 
     mkdir -p "$LOCALDESTDIR"/etc > /dev/null 2>&1
